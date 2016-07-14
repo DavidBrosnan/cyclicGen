@@ -1,50 +1,100 @@
 #!/usr/bin/env python
 
 import sys
+
+CAPITAL_WRAP = 780	# 780 = Aa0 -> Az9
+LOWER_WRAP = 30		# 30  = *a0 -> *a9
+DIGIT_WRAP = 10		# 10  = **0 -> **9
+
+DEFAULT = 200 # Default pattern gen length
+
 """
-This method will create a cyclic pattern of an designated length
+This method will create a cyclic pattern of a designated length
+with the pattern:
+
+	length = 200
+
+	Aa0Aa1Aa2Aa3Aa4Aa5Aa6Aa7Aa8Aa9Ab0Ab1Ab2Ab3Ab4Ab5Ab...Ag4Ag5Ag
+
 """
 def generator(length):
 	length = int(length)
 	pattern = ""
 	for i in range(0,length):
 		if (i % 3) == 0:	# 26 * 10 * 3
-			pattern += chr(ord("A") + ((i / 780) % 26))		# 780 = Aa0 -> Az9
+			pattern += chr(ord("A") + ((i / CAPITAL_WRAP) % 26))
 		
 		elif (i % 3) == 1:	# 10 * 3
-			pattern += chr(ord("a") + ((i / 30) % 26))		# 30 = *a0 -> *a9
+			pattern += chr(ord("a") + ((i / LOWER_WRAP) % 26))		
 
 		else:
-			pattern += str((i/3) % 10)		# 10 = **0 -> **9
+			pattern += str((i/3) % DIGIT_WRAP)		
 
 	return pattern
 
 """
 This method will find the offset of the overwritten eip address when given the segfaulted address
-length should be >= length used in the original pattern
 """
-def offset(length, address):
+def offset(address):
 
 	address = address[2::].decode("hex")[::-1]		# remove 0x, decode to hex, reverse endianess
-	pattern = generator(length)
+	
+	length = getPatternLength(address)
 
+	pattern = generator(length)
 	return pattern.index(address)
+
+"""
+This method will generate the length for a pattern with enough of an upperbound to find the offset depending on the capital letter found (pattern of 3 + 4 bytes = always at least one capital letter)
+
+found_flag also supports cases such as Bz9C
+"""
+def getPatternLength(address):
+	length = -1
+	found_flag = False
+
+	for i in range(ord('A'), ord('Z')):
+		if chr(i) in address:
+			length = CAPITAL_WRAP * ((i % ord('A')) + 1)
+			found_flag = True
+		elif found_flag: # found_flag is True but we passed last largest capital letter in string
+			break
+
+	return length	
+
+
+def usage():
+	print """Description: A cyclic pattern generator that will allow user to find offset of the return EIP address when performing a buffer overflow
+
+usage: 
+	cyclicGen gen [pattern_length]		Generate a pattern of a given length (default=200)
+	cyclicGen off  address			Give the offset of the EIP based on the segfault address"""
+	sys.exit(0)
 
 if __name__ == "__main__":
 
-	func = sys.argv[1]
+	if len(sys.argv) == 1:
+		usage()
 
-	if len(sys.argv) == 2 and func == "gen" :
-			print generator(200)
-	
-	elif len(sys.argv) == 3 and func == "gen":
-		print generator(sys.argv[2])
-
-	elif len(sys.argv) == 3 and func == "off":
-		print offset(200, sys.argv[2])
-
-	elif len(sys.argv) == 4 and func == "off":
-		print offset(sys.argv[2], sys.argv[3])
+	if sys.argv[1] =="gen" or sys.argv[1] == "off":
+		func = sys.argv[1]
 
 	else:
-		pass
+		usage()
+
+	if len(sys.argv) == 2 and func == "gen" :
+		print generator(DEFAULT)
+	
+	elif len(sys.argv) == 3:
+		
+		if func == "gen":
+			print generator(sys.argv[2])
+
+		elif func == "off":
+			print offset(sys.argv[2])
+
+		else:
+			usage()
+
+	else:
+		usage()
