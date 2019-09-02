@@ -5,6 +5,7 @@ I had actually developed this before I knew that metasploit had the commonly use
 
 ## Usage
 ./cyclicGen 
+
 Description: A cyclic pattern generator that will allow user to find offset of the return EIP address when performing a buffer overflow
 
 usage: 
